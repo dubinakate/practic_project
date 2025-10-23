@@ -1,4 +1,4 @@
---средний чек по месяцам
+--средний чек в разрезе месяца
 WITH orders AS
   (SELECT *,
           revenue * commission AS commission_revenue
@@ -6,7 +6,9 @@ WITH orders AS
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE revenue IS NOT NULL
      AND log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск')
+     AND city_name = 'Саранск'
+  )
+  
 SELECT CASE WHEN CAST(DATE_TRUNC('month', log_date) AS date)= '01.05.2021' THEN 'Май'
 WHEN CAST(DATE_TRUNC('month', log_date) AS date)= '01.06.2021' THEN 'Июнь'
 END AS "Месяц",
@@ -25,7 +27,9 @@ WITH orders AS
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE revenue IS NOT NULL
      AND log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск')
+     AND city_name = 'Саранск'
+  )
+  
 SELECT CASE WHEN CAST(DATE_TRUNC('month', log_date) AS date)= '01.05.2021' THEN 'Май'
 WHEN CAST(DATE_TRUNC('month', log_date) AS date)= '01.06.2021' THEN 'Июнь'
 END AS "Месяц",
@@ -44,7 +48,9 @@ WITH orders AS
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE revenue IS NOT NULL
      AND log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск')
+     AND city_name = 'Саранск'
+  )
+  
 SELECT CASE WHEN CAST(DATE_TRUNC('month', log_date) AS date)= '01.05.2021' THEN 'Май'
 WHEN CAST(DATE_TRUNC('month', log_date) AS date)= '01.06.2021' THEN 'Июнь'
 END AS "Месяц",
@@ -86,8 +92,9 @@ WITH orders AS
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE revenue IS NOT NULL
      AND log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск'), 
--- Рассчитываем два ресторана с наибольшим LTV
+     AND city_name = 'Саранск'
+  ), 
+  
 top_ltv_restaurants AS
   (SELECT orders.rest_id,
           chain,
@@ -97,7 +104,9 @@ top_ltv_restaurants AS
    JOIN rest_analytics.partners partners ON orders.rest_id = partners.rest_id AND orders.city_id = partners.city_id 
    GROUP BY 1, 2, 3
    ORDER BY LTV DESC
-   LIMIT 2)
+   LIMIT 2
+  )
+  
 SELECT chain AS "Название сети",
        dishes.name AS "Название блюда",
        spicy,
@@ -121,7 +130,9 @@ WITH orders AS
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE revenue IS NOT NULL
      AND log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск')
+     AND city_name = 'Саранск'
+  )
+  
 SELECT orders.rest_id,
        chain AS "Название сети",
        type AS "Тип кухни",
@@ -139,25 +150,29 @@ WITH new_users AS
    FROM rest_analytics.analytics_events AS events
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE first_date BETWEEN '2021-05-01' AND '2021-06-24'
-     AND city_name = 'Саранск'),
--- Рассчитываем активных пользователей по дате события
+     AND city_name = 'Саранск'
+  ),
+
 active_users AS
   (SELECT DISTINCT log_date,
                    user_id
    FROM rest_analytics.analytics_events AS events
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск'),
+     AND city_name = 'Саранск'
+  ),
+  
 daily_retention AS
   (SELECT n.user_id,
           first_date,
           log_date::date - first_date::date AS day_since_install
    FROM new_users AS n
    JOIN active_users AS a ON n.user_id = a.user_id
-   AND log_date >= first_date)
+  )
+  
 SELECT day_since_install,
        COUNT(DISTINCT user_id) AS retained_users,
-       ROUND((1.0 * COUNT(DISTINCT user_id) / MAX(COUNT(DISTINCT user_id)) OVER (ORDER BY day_since_install))::numeric, 2) AS retention_rate
+       ROUND((1.0 * COUNT(DISTINCT user_id) / MAX(COUNT(DISTINCT user_id)) OVER ()::numeric, 2) AS retention_rate
 FROM daily_retention
 WHERE day_since_install < 8
 GROUP BY day_since_install
@@ -170,23 +185,27 @@ WITH new_users AS
    FROM rest_analytics.analytics_events AS events
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE first_date BETWEEN '2021-05-01' AND '2021-06-24'
-     AND city_name = 'Саранск'),
--- Рассчитываем активных пользователей по дате события
+     AND city_name = 'Саранск'
+  ),
+
 active_users AS
   (SELECT DISTINCT log_date,
                    user_id
    FROM rest_analytics.analytics_events AS events
    JOIN rest_analytics.cities cities ON events.city_id = cities.city_id
    WHERE log_date BETWEEN '2021-05-01' AND '2021-06-30'
-     AND city_name = 'Саранск'),
--- Соединяем таблицы с новыми и активными пользователями
+     AND city_name = 'Саранск'
+  ),
+
 daily_retention AS
   (SELECT n.user_id,
           first_date,
           log_date::date - first_date::date AS day_since_install
    FROM new_users AS n
    JOIN active_users AS a ON n.user_id = a.user_id
-   AND log_date >= first_date),
+   AND log_date >= first_date
+  ),
+  
 base as(SELECT DISTINCT CAST(DATE_TRUNC('month', first_date) AS date) AS "Месяц",
                 day_since_install,
                 COUNT(DISTINCT user_id) AS retained_users,
@@ -195,7 +214,8 @@ ORDER BY day_since_install))::numeric, 2) AS retention_rate
 FROM daily_retention
 WHERE day_since_install < 8
 GROUP BY "Месяц", day_since_install
-ORDER BY "Месяц", day_since_install)
+ORDER BY "Месяц", day_since_install
+  )
 
 SELECT CASE WHEN "Месяц"= '01.05.2021' THEN 'Май'
             ELSE 'Июнь'
@@ -210,3 +230,4 @@ MAX(retention_rate) FILTER (WHERE day_since_install = 6) AS "6",
 MAX(retention_rate) FILTER (WHERE day_since_install = 7) AS "7"
 FROM base
 GROUP BY 1; 
+
